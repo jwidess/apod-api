@@ -26,7 +26,9 @@ export const getDataByDate = async (date: DateTime) => {
   const imageElement = $(
     'a[href^=image] img[src^=image], button img[src^=image]'
   );
-  const videoElement = $('iframe');
+  const iframeElement = $('iframe');
+  const videoTagElement = $('video');
+  const videoSourceElement = $('video source');
   // these seem to be video embeds as well
   const embedElement = $('embed');
   const descriptionHtml = $('center ~ center ~ p')
@@ -42,12 +44,21 @@ export const getDataByDate = async (date: DateTime) => {
     /credit:\s+(.+?)\s+(?:;|explanation)/gi.exec(body.replace(/\s+/gi, ' ')) ||
     [];
 
-  const imageUrl =
-    imageElement.attr('src') &&
-    `https://apod.nasa.gov/apod/` + imageElement.attr('src');
-  const hdImageUrl =
-    $('a[href^=image]').attr('href') &&
-    `https://apod.nasa.gov/apod/${$('a[href^=image]').attr('href')}`;
+  const normalizeApodUrl = (rawUrl?: string) => {
+    if (!rawUrl) return undefined;
+    if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+    if (rawUrl.startsWith('//')) return `https:${rawUrl}`;
+    return `https://apod.nasa.gov/apod/${rawUrl.replace(/^\/+/, '')}`;
+  };
+
+  const imageUrl = normalizeApodUrl(imageElement.attr('src'));
+  const hdImageUrl = normalizeApodUrl($('a[href^=image]').attr('href'));
+  const iframeUrl = normalizeApodUrl(iframeElement.attr('src'));
+  const videoUrl = normalizeApodUrl(
+    videoSourceElement.attr('src') ||
+      videoTagElement.attr('src') ||
+      embedElement.attr('src')
+  );
 
   return {
     title,
@@ -57,7 +68,7 @@ export const getDataByDate = async (date: DateTime) => {
     hdurl: hdImageUrl ?? imageUrl,
     service_version: 'v1',
     copyright,
-    media_type: imageUrl ? 'image' : videoElement.length ? 'video' : 'other',
-    url: imageUrl ?? videoElement.attr('src'),
+    media_type: imageUrl ? 'image' : iframeUrl || videoUrl ? 'video' : 'other',
+    url: imageUrl ?? videoUrl ?? iframeUrl,
   };
 };
